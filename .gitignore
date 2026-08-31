@@ -1,0 +1,16 @@
+.venv*/
+build/
+models/
+testdata/reference_cases/
+__pycache__/
+*.pyc
+*.onnx
+*.pth
+*.pt
+*.safetensors
+*.npz
+*.wav
+*.mpk
+*.tar.gz
+*.zip
+*.aria2

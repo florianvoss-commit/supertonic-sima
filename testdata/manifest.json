@@ -1,0 +1,1086 @@
+{
+  "base_chunk_size": 512,
+  "boundaries": {
+    "empty_text": {
+      "accepted": false,
+      "reason": "empty",
+      "text": ""
+    },
+    "latent_length_192": {
+      "accepted_by_latent_limit": true,
+      "duration_seconds_upper_bound": 13.374693877551021,
+      "latent_length": 192
+    },
+    "latent_length_193": {
+      "accepted_by_latent_limit": false,
+      "duration_seconds_lower_bound": 13.374716553287982,
+      "latent_length": 193
+    },
+    "medium_speed_0_5": {
+      "accepted": false,
+      "latent_length": 297,
+      "predicted_duration_seconds": 20.637447357177734,
+      "text": "Neat GenAI Studio runs language, vision, speech, and retrieval workloads locally on the Modalix DevKit, keeping application data on the device.",
+      "text_length": 152
+    },
+    "text_length_192": {
+      "accepted_by_text_limit": true,
+      "preprocessed_text_length": 192,
+      "raw_characters": 183,
+      "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa."
+    },
+    "text_length_193": {
+      "accepted_by_text_limit": false,
+      "preprocessed_text_length": 193,
+      "raw_characters": 184,
+      "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa."
+    },
+    "unsupported_character": {
+      "accepted": false,
+      "text": "Hello \ue000",
+      "unsupported": [
+        "\ue000"
+      ]
+    }
+  },
+  "boundary_cases_sha256": "340fad7caa15928ad6fb65a2fbaaa066e30a034f584dd743f2a54aa9d5da23d1",
+  "cases": [
+    {
+      "array_dtypes": {
+        "denoised_latent_step_01": "float32",
+        "denoised_latent_step_02": "float32",
+        "denoised_latent_step_03": "float32",
+        "denoised_latent_step_04": "float32",
+        "denoised_latent_step_05": "float32",
+        "denoised_latent_step_06": "float32",
+        "denoised_latent_step_07": "float32",
+        "denoised_latent_step_08": "float32",
+        "duration_seconds": "float32",
+        "final_latent_natural": "float32",
+        "latent_mask_natural": "float32",
+        "latent_mask_padded": "float32",
+        "noisy_latent_natural": "float32",
+        "noisy_latent_padded": "float32",
+        "style_dp": "float32",
+        "style_ttl": "float32",
+        "text_emb_natural": "float32",
+        "text_emb_padded": "float32",
+        "text_ids_natural": "int64",
+        "text_mask_natural": "float32",
+        "text_mask_padded": "float32",
+        "waveform_float32": "float32"
+      },
+      "array_shapes": {
+        "denoised_latent_step_01": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_02": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_03": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_04": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_05": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_06": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_07": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_08": [
+          1,
+          144,
+          60
+        ],
+        "duration_seconds": [
+          1
+        ],
+        "final_latent_natural": [
+          1,
+          144,
+          60
+        ],
+        "latent_mask_natural": [
+          1,
+          1,
+          60
+        ],
+        "latent_mask_padded": [
+          1,
+          1,
+          192
+        ],
+        "noisy_latent_natural": [
+          1,
+          144,
+          60
+        ],
+        "noisy_latent_padded": [
+          1,
+          144,
+          192
+        ],
+        "style_dp": [
+          1,
+          8,
+          16
+        ],
+        "style_ttl": [
+          1,
+          50,
+          256
+        ],
+        "text_emb_natural": [
+          1,
+          256,
+          60
+        ],
+        "text_emb_padded": [
+          1,
+          256,
+          192
+        ],
+        "text_ids_natural": [
+          1,
+          60
+        ],
+        "text_mask_natural": [
+          1,
+          1,
+          60
+        ],
+        "text_mask_padded": [
+          1,
+          1,
+          192
+        ],
+        "waveform_float32": [
+          1,
+          184320
+        ]
+      },
+      "checkpoints": [
+        1,
+        2,
+        8
+      ],
+      "language": "en",
+      "latent_length": 60,
+      "name": "en_m1_short",
+      "normalized_text": "<en>Hello from Neat GenAI Studio on the Modalix DevKit.</en>",
+      "npz": "en_m1_short.npz",
+      "npz_sha256": "aa6319a59dbe416fa4144808e547cba8a681e0fd7c0333645534be35592e9a6b",
+      "predicted_duration_seconds": 4.138976573944092,
+      "raw_characters": 51,
+      "seed": 1101,
+      "speed": 1.0,
+      "text": "Hello from Neat GenAI Studio on the Modalix DevKit.",
+      "text_length": 60,
+      "total_steps": 8,
+      "voice": "M1",
+      "wav": "en_m1_short.wav",
+      "wav_sha256": "70d3094363c91f5802711060ff0cb03778c4445f818f4bc0b75e384e552a3f98",
+      "waveform_duration_seconds": 4.179591836734694,
+      "waveform_samples": 184320
+    },
+    {
+      "array_dtypes": {
+        "denoised_latent_step_01": "float32",
+        "denoised_latent_step_02": "float32",
+        "denoised_latent_step_03": "float32",
+        "denoised_latent_step_04": "float32",
+        "denoised_latent_step_05": "float32",
+        "denoised_latent_step_06": "float32",
+        "denoised_latent_step_07": "float32",
+        "denoised_latent_step_08": "float32",
+        "duration_seconds": "float32",
+        "final_latent_natural": "float32",
+        "latent_mask_natural": "float32",
+        "latent_mask_padded": "float32",
+        "noisy_latent_natural": "float32",
+        "noisy_latent_padded": "float32",
+        "style_dp": "float32",
+        "style_ttl": "float32",
+        "text_emb_natural": "float32",
+        "text_emb_padded": "float32",
+        "text_ids_natural": "int64",
+        "text_mask_natural": "float32",
+        "text_mask_padded": "float32",
+        "waveform_float32": "float32"
+      },
+      "array_shapes": {
+        "denoised_latent_step_01": [
+          1,
+          144,
+          149
+        ],
+        "denoised_latent_step_02": [
+          1,
+          144,
+          149
+        ],
+        "denoised_latent_step_03": [
+          1,
+          144,
+          149
+        ],
+        "denoised_latent_step_04": [
+          1,
+          144,
+          149
+        ],
+        "denoised_latent_step_05": [
+          1,
+          144,
+          149
+        ],
+        "denoised_latent_step_06": [
+          1,
+          144,
+          149
+        ],
+        "denoised_latent_step_07": [
+          1,
+          144,
+          149
+        ],
+        "denoised_latent_step_08": [
+          1,
+          144,
+          149
+        ],
+        "duration_seconds": [
+          1
+        ],
+        "final_latent_natural": [
+          1,
+          144,
+          149
+        ],
+        "latent_mask_natural": [
+          1,
+          1,
+          149
+        ],
+        "latent_mask_padded": [
+          1,
+          1,
+          192
+        ],
+        "noisy_latent_natural": [
+          1,
+          144,
+          149
+        ],
+        "noisy_latent_padded": [
+          1,
+          144,
+          192
+        ],
+        "style_dp": [
+          1,
+          8,
+          16
+        ],
+        "style_ttl": [
+          1,
+          50,
+          256
+        ],
+        "text_emb_natural": [
+          1,
+          256,
+          152
+        ],
+        "text_emb_padded": [
+          1,
+          256,
+          192
+        ],
+        "text_ids_natural": [
+          1,
+          152
+        ],
+        "text_mask_natural": [
+          1,
+          1,
+          152
+        ],
+        "text_mask_padded": [
+          1,
+          1,
+          192
+        ],
+        "waveform_float32": [
+          1,
+          457728
+        ]
+      },
+      "checkpoints": [
+        1,
+        2,
+        8
+      ],
+      "language": "en",
+      "latent_length": 149,
+      "name": "en_m1_medium",
+      "normalized_text": "<en>Neat GenAI Studio runs language, vision, speech, and retrieval workloads locally on the Modalix DevKit, keeping application data on the device.</en>",
+      "npz": "en_m1_medium.npz",
+      "npz_sha256": "a1a2c4109041f997afb043babffd82eba71dd94ed5251c0e0a997aefdf71f933",
+      "predicted_duration_seconds": 10.318723678588867,
+      "raw_characters": 143,
+      "seed": 1201,
+      "speed": 1.0,
+      "text": "Neat GenAI Studio runs language, vision, speech, and retrieval workloads locally on the Modalix DevKit, keeping application data on the device.",
+      "text_length": 152,
+      "total_steps": 8,
+      "voice": "M1",
+      "wav": "en_m1_medium.wav",
+      "wav_sha256": "7530e57867dc06f716a2e9803eb44a5ea198114b926b0611db57afec2c7edcaa",
+      "waveform_duration_seconds": 10.379319727891156,
+      "waveform_samples": 457728
+    },
+    {
+      "array_dtypes": {
+        "denoised_latent_step_01": "float32",
+        "denoised_latent_step_02": "float32",
+        "denoised_latent_step_03": "float32",
+        "denoised_latent_step_04": "float32",
+        "denoised_latent_step_05": "float32",
+        "denoised_latent_step_06": "float32",
+        "denoised_latent_step_07": "float32",
+        "denoised_latent_step_08": "float32",
+        "duration_seconds": "float32",
+        "final_latent_natural": "float32",
+        "latent_mask_natural": "float32",
+        "latent_mask_padded": "float32",
+        "noisy_latent_natural": "float32",
+        "noisy_latent_padded": "float32",
+        "style_dp": "float32",
+        "style_ttl": "float32",
+        "text_emb_natural": "float32",
+        "text_emb_padded": "float32",
+        "text_ids_natural": "int64",
+        "text_mask_natural": "float32",
+        "text_mask_padded": "float32",
+        "waveform_float32": "float32"
+      },
+      "array_shapes": {
+        "denoised_latent_step_01": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_02": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_03": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_04": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_05": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_06": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_07": [
+          1,
+          144,
+          60
+        ],
+        "denoised_latent_step_08": [
+          1,
+          144,
+          60
+        ],
+        "duration_seconds": [
+          1
+        ],
+        "final_latent_natural": [
+          1,
+          144,
+          60
+        ],
+        "latent_mask_natural": [
+          1,
+          1,
+          60
+        ],
+        "latent_mask_padded": [
+          1,
+          1,
+          192
+        ],
+        "noisy_latent_natural": [
+          1,
+          144,
+          60
+        ],
+        "noisy_latent_padded": [
+          1,
+          144,
+          192
+        ],
+        "style_dp": [
+          1,
+          8,
+          16
+        ],
+        "style_ttl": [
+          1,
+          50,
+          256
+        ],
+        "text_emb_natural": [
+          1,
+          256,
+          60
+        ],
+        "text_emb_padded": [
+          1,
+          256,
+          192
+        ],
+        "text_ids_natural": [
+          1,
+          60
+        ],
+        "text_mask_natural": [
+          1,
+          1,
+          60
+        ],
+        "text_mask_padded": [
+          1,
+          1,
+          192
+        ],
+        "waveform_float32": [
+          1,
+          184320
+        ]
+      },
+      "checkpoints": [
+        1,
+        2,
+        8
+      ],
+      "language": "en",
+      "latent_length": 60,
+      "name": "en_f1_short",
+      "normalized_text": "<en>Hello from Neat GenAI Studio on the Modalix DevKit.</en>",
+      "npz": "en_f1_short.npz",
+      "npz_sha256": "d7bc3170ed8e08ec9ff24f7da1a9b004d066b7454f02139106b2ee0494cede0f",
+      "predicted_duration_seconds": 4.137207984924316,
+      "raw_characters": 51,
+      "seed": 1301,
+      "speed": 1.0,
+      "text": "Hello from Neat GenAI Studio on the Modalix DevKit.",
+      "text_length": 60,
+      "total_steps": 8,
+      "voice": "F1",
+      "wav": "en_f1_short.wav",
+      "wav_sha256": "db8e41974fc237d6b6cf5703f7006c12593f15f46b96df5ce96c75e8ccba17a8",
+      "waveform_duration_seconds": 4.179591836734694,
+      "waveform_samples": 184320
+    },
+    {
+      "array_dtypes": {
+        "denoised_latent_step_01": "float32",
+        "denoised_latent_step_02": "float32",
+        "denoised_latent_step_03": "float32",
+        "denoised_latent_step_04": "float32",
+        "denoised_latent_step_05": "float32",
+        "denoised_latent_step_06": "float32",
+        "denoised_latent_step_07": "float32",
+        "denoised_latent_step_08": "float32",
+        "duration_seconds": "float32",
+        "final_latent_natural": "float32",
+        "latent_mask_natural": "float32",
+        "latent_mask_padded": "float32",
+        "noisy_latent_natural": "float32",
+        "noisy_latent_padded": "float32",
+        "style_dp": "float32",
+        "style_ttl": "float32",
+        "text_emb_natural": "float32",
+        "text_emb_padded": "float32",
+        "text_ids_natural": "int64",
+        "text_mask_natural": "float32",
+        "text_mask_padded": "float32",
+        "waveform_float32": "float32"
+      },
+      "array_shapes": {
+        "denoised_latent_step_01": [
+          1,
+          144,
+          88
+        ],
+        "denoised_latent_step_02": [
+          1,
+          144,
+          88
+        ],
+        "denoised_latent_step_03": [
+          1,
+          144,
+          88
+        ],
+        "denoised_latent_step_04": [
+          1,
+          144,
+          88
+        ],
+        "denoised_latent_step_05": [
+          1,
+          144,
+          88
+        ],
+        "denoised_latent_step_06": [
+          1,
+          144,
+          88
+        ],
+        "denoised_latent_step_07": [
+          1,
+          144,
+          88
+        ],
+        "denoised_latent_step_08": [
+          1,
+          144,
+          88
+        ],
+        "duration_seconds": [
+          1
+        ],
+        "final_latent_natural": [
+          1,
+          144,
+          88
+        ],
+        "latent_mask_natural": [
+          1,
+          1,
+          88
+        ],
+        "latent_mask_padded": [
+          1,
+          1,
+          192
+        ],
+        "noisy_latent_natural": [
+          1,
+          144,
+          88
+        ],
+        "noisy_latent_padded": [
+          1,
+          144,
+          192
+        ],
+        "style_dp": [
+          1,
+          8,
+          16
+        ],
+        "style_ttl": [
+          1,
+          50,
+          256
+        ],
+        "text_emb_natural": [
+          1,
+          256,
+          83
+        ],
+        "text_emb_padded": [
+          1,
+          256,
+          192
+        ],
+        "text_ids_natural": [
+          1,
+          83
+        ],
+        "text_mask_natural": [
+          1,
+          1,
+          83
+        ],
+        "text_mask_padded": [
+          1,
+          1,
+          192
+        ],
+        "waveform_float32": [
+          1,
+          270336
+        ]
+      },
+      "checkpoints": [
+        1,
+        2,
+        8
+      ],
+      "language": "es",
+      "latent_length": 88,
+      "name": "es_m1_short",
+      "normalized_text": "<es>Hola desde Modalix. Esta voz se genera de forma privada en el dispositivo.</es>",
+      "npz": "es_m1_short.npz",
+      "npz_sha256": "45497c5c48093121282c5ef9a43bb9b8c150ffa6d307c6fb4f48cadc76473605",
+      "predicted_duration_seconds": 6.09906530380249,
+      "raw_characters": 74,
+      "seed": 1401,
+      "speed": 1.0,
+      "text": "Hola desde Modalix. Esta voz se genera de forma privada en el dispositivo.",
+      "text_length": 83,
+      "total_steps": 8,
+      "voice": "M1",
+      "wav": "es_m1_short.wav",
+      "wav_sha256": "9e370be8cf4bc69320181048a3c388ce6765ea7a5de75f741ce00748611e5876",
+      "waveform_duration_seconds": 6.130068027210885,
+      "waveform_samples": 270336
+    },
+    {
+      "array_dtypes": {
+        "denoised_latent_step_01": "float32",
+        "denoised_latent_step_02": "float32",
+        "denoised_latent_step_03": "float32",
+        "denoised_latent_step_04": "float32",
+        "denoised_latent_step_05": "float32",
+        "denoised_latent_step_06": "float32",
+        "denoised_latent_step_07": "float32",
+        "denoised_latent_step_08": "float32",
+        "duration_seconds": "float32",
+        "final_latent_natural": "float32",
+        "latent_mask_natural": "float32",
+        "latent_mask_padded": "float32",
+        "noisy_latent_natural": "float32",
+        "noisy_latent_padded": "float32",
+        "style_dp": "float32",
+        "style_ttl": "float32",
+        "text_emb_natural": "float32",
+        "text_emb_padded": "float32",
+        "text_ids_natural": "int64",
+        "text_mask_natural": "float32",
+        "text_mask_padded": "float32",
+        "waveform_float32": "float32"
+      },
+      "array_shapes": {
+        "denoised_latent_step_01": [
+          1,
+          144,
+          182
+        ],
+        "denoised_latent_step_02": [
+          1,
+          144,
+          182
+        ],
+        "denoised_latent_step_03": [
+          1,
+          144,
+          182
+        ],
+        "denoised_latent_step_04": [
+          1,
+          144,
+          182
+        ],
+        "denoised_latent_step_05": [
+          1,
+          144,
+          182
+        ],
+        "denoised_latent_step_06": [
+          1,
+          144,
+          182
+        ],
+        "denoised_latent_step_07": [
+          1,
+          144,
+          182
+        ],
+        "denoised_latent_step_08": [
+          1,
+          144,
+          182
+        ],
+        "duration_seconds": [
+          1
+        ],
+        "final_latent_natural": [
+          1,
+          144,
+          182
+        ],
+        "latent_mask_natural": [
+          1,
+          1,
+          182
+        ],
+        "latent_mask_padded": [
+          1,
+          1,
+          192
+        ],
+        "noisy_latent_natural": [
+          1,
+          144,
+          182
+        ],
+        "noisy_latent_padded": [
+          1,
+          144,
+          192
+        ],
+        "style_dp": [
+          1,
+          8,
+          16
+        ],
+        "style_ttl": [
+          1,
+          50,
+          256
+        ],
+        "text_emb_natural": [
+          1,
+          256,
+          186
+        ],
+        "text_emb_padded": [
+          1,
+          256,
+          192
+        ],
+        "text_ids_natural": [
+          1,
+          186
+        ],
+        "text_mask_natural": [
+          1,
+          1,
+          186
+        ],
+        "text_mask_padded": [
+          1,
+          1,
+          192
+        ],
+        "waveform_float32": [
+          1,
+          559104
+        ]
+      },
+      "checkpoints": [
+        1,
+        2,
+        8
+      ],
+      "language": "en",
+      "latent_length": 182,
+      "name": "en_m1_near_capacity",
+      "normalized_text": "<en>Modalix runs speech generation locally, keeping private conversations on the device while producing a clear and responsive voice for interactive assistants, demonstrations, and.</en>",
+      "npz": "en_m1_near_capacity.npz",
+      "npz_sha256": "a1bc6fe37b2862a134704dd3d41078ab4ee0e39c4e9f20bb7391c38ebcd501b5",
+      "predicted_duration_seconds": 12.662311553955078,
+      "raw_characters": 177,
+      "seed": 1501,
+      "speed": 1.0,
+      "text": "Modalix runs speech generation locally, keeping private conversations on the device while producing a clear and responsive voice for interactive assistants, demonstrations, and.",
+      "text_length": 186,
+      "total_steps": 8,
+      "voice": "M1",
+      "wav": "en_m1_near_capacity.wav",
+      "wav_sha256": "8669a00f159a0ee979ce88ba44d434126765f80866bb69a1b5caee52e40ea5d6",
+      "waveform_duration_seconds": 12.678095238095239,
+      "waveform_samples": 559104
+    }
+  ],
+  "chunk_compress_factor": 6,
+  "compiled_contract": {
+    "inputs": [
+      {
+        "dtype": "float32",
+        "index": 0,
+        "name": "noisy_latent",
+        "shape": [
+          1,
+          144,
+          1,
+          192
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 1,
+        "name": "text_emb",
+        "shape": [
+          1,
+          256,
+          1,
+          192
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 2,
+        "name": "style_ttl",
+        "shape": [
+          1,
+          1,
+          50,
+          256
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 3,
+        "name": "style_key",
+        "shape": [
+          1,
+          1,
+          50,
+          256
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 4,
+        "name": "latent_mask",
+        "shape": [
+          1,
+          1,
+          1,
+          192
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 5,
+        "name": "text_mask",
+        "shape": [
+          1,
+          1,
+          1,
+          192
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 6,
+        "name": "current_step",
+        "shape": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 7,
+        "name": "total_step",
+        "shape": [
+          1,
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "dtype": "float32",
+        "index": 0,
+        "name": "velocity",
+        "shape": [
+          1,
+          144,
+          1,
+          192
+        ]
+      }
+    ],
+    "symbolic_dimensions": {
+      "batch_size": 1,
+      "latent_length": 192,
+      "text_length": 192
+    }
+  },
+  "components": [
+    {
+      "path": "onnx/tts.json",
+      "sha256": "42078d3aef1cd43ab43021f3c54f47d2d75ceb4e75f627f118890128b06a0d09",
+      "size": 8253
+    },
+    {
+      "path": "onnx/unicode_indexer.json",
+      "sha256": "9bf7346e43883a81f8645c81224f786d43c5b57f3641f6e7671a7d6c493cb24f",
+      "size": 277676
+    },
+    {
+      "path": "onnx/duration_predictor.onnx",
+      "sha256": "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db",
+      "size": 3700147
+    },
+    {
+      "path": "onnx/text_encoder.onnx",
+      "sha256": "c7befd5ea8c3119769e8a6c1486c4edc6a3bc8365c67621c881bbb774b9902ff",
+      "size": 36416150
+    },
+    {
+      "path": "onnx/vector_estimator.onnx",
+      "sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c",
+      "size": 256534781
+    },
+    {
+      "path": "onnx/vocoder.onnx",
+      "sha256": "085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba",
+      "size": 101424195
+    },
+    {
+      "path": "voice_styles/M1.json",
+      "sha256": "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b",
+      "size": 291748
+    },
+    {
+      "path": "voice_styles/F1.json",
+      "sha256": "bbdec6ee00231c2c742ad05483df5334cab3b52fda3ba38e6a07059c4563dbc2",
+      "size": 292046
+    }
+  ],
+  "created_at": "2026-08-26T02:29:23.003593+00:00",
+  "hf_repository": "Supertone/supertonic-3",
+  "hf_revision": "724fb5abbf5502583fb520898d45929e62f02c0b",
+  "latent_dimension": 144,
+  "model_dir": "/media/nvme/tts-benchmark/supertonic-3",
+  "numpy": "2.4.6",
+  "onnxruntime": "1.29.0",
+  "platform": "Linux-6.18.3-modalix-aarch64-with-glibc2.36",
+  "python": "3.11.2",
+  "sample_rate": 44100,
+  "source_contract": {
+    "inputs": [
+      {
+        "dtype": "float32",
+        "index": 0,
+        "name": "noisy_latent",
+        "shape": [
+          1,
+          144,
+          192
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 1,
+        "name": "text_emb",
+        "shape": [
+          1,
+          256,
+          192
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 2,
+        "name": "style_ttl",
+        "shape": [
+          1,
+          50,
+          256
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 3,
+        "name": "latent_mask",
+        "shape": [
+          1,
+          1,
+          192
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 4,
+        "name": "text_mask",
+        "shape": [
+          1,
+          1,
+          192
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 5,
+        "name": "current_step",
+        "shape": [
+          1
+        ]
+      },
+      {
+        "dtype": "float32",
+        "index": 6,
+        "name": "total_step",
+        "shape": [
+          1
+        ]
+      }
+    ],
+    "outputs": [
+      {
+        "dtype": "float32",
+        "index": 0,
+        "name": "denoised_latent",
+        "shape": [
+          1,
+          144,
+          192
+        ]
+      }
+    ],
+    "symbolic_dimensions": {
+      "batch_size": 1,
+      "latent_length": 192,
+      "text_length": 192
+    }
+  },
+  "status": "passed",
+  "supertonic": "1.3.1"
+}
