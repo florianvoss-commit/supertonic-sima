@@ -862,9 +862,9 @@
         "name": "style_ttl",
         "shape": [
           1,
+          256,
           1,
-          50,
-          256
+          50
         ]
       },
       {
@@ -873,9 +873,9 @@
         "name": "style_key",
         "shape": [
           1,
+          256,
           1,
-          50,
-          256
+          50
         ]
       },
       {
@@ -895,18 +895,18 @@
         "name": "text_mask",
         "shape": [
           1,
+          192,
           1,
-          1,
-          192
+          1
         ]
       },
       {
         "dtype": "float32",
         "index": 6,
-        "name": "current_step",
+        "name": "time_sinusoidal",
         "shape": [
           1,
-          1,
+          64,
           1,
           1
         ]
@@ -914,12 +914,12 @@
       {
         "dtype": "float32",
         "index": 7,
-        "name": "total_step",
+        "name": "rope_tables",
         "shape": [
           1,
+          128,
           1,
-          1,
-          1
+          192
         ]
       }
     ],

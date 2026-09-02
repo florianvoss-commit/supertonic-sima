@@ -23,7 +23,7 @@ SOURCE_INPUT_SHAPES = OrderedDict(
 )
 SOURCE_OUTPUT_SHAPES = OrderedDict([("denoised_latent", (1, 144, 192))])
 
-COMPILED_INPUT_SHAPES = OrderedDict(
+PRE_EXTERNAL_INPUT_SHAPES = OrderedDict(
     [
         ("noisy_latent", (1, 144, 1, 192)),
         ("text_emb", (1, 256, 1, 192)),
@@ -34,6 +34,20 @@ COMPILED_INPUT_SHAPES = OrderedDict(
         ("text_mask", (1, 192, 1, 1)),
         ("current_step", (1, 1, 1, 1)),
         ("total_step", (1, 1, 1, 1)),
+    ]
+)
+
+COMPILED_INPUT_SHAPES = OrderedDict(
+    [
+        ("noisy_latent", (1, 144, 1, 192)),
+        ("text_emb", (1, 256, 1, 192)),
+        ("style_ttl", (1, 256, 1, 50)),
+        ("style_key", (1, 256, 1, 50)),
+        ("latent_mask", (1, 1, 1, 192)),
+        # LLiMa-compatible attention score layout: [B, key_length, 1, 1].
+        ("text_mask", (1, 192, 1, 1)),
+        ("time_sinusoidal", (1, 64, 1, 1)),
+        ("rope_tables", (1, 128, 1, 192)),
     ]
 )
 COMPILED_OUTPUT_SHAPES = OrderedDict([("velocity", (1, 144, 1, 192))])
@@ -70,6 +84,12 @@ def serializable_contract() -> dict:
 
 
 def serializable_compiled_contract() -> dict:
-    """Return the Modalix all-4D vector-field-core contract."""
+    """Return the final Modalix vector-field contract with host RoPE inputs."""
 
     return _serializable_contract(COMPILED_INPUT_SHAPES, COMPILED_OUTPUT_SHAPES)
+
+
+def serializable_pre_external_contract() -> dict:
+    """Return the internal contract used before sinusoidal externalization."""
+
+    return _serializable_contract(PRE_EXTERNAL_INPUT_SHAPES, COMPILED_OUTPUT_SHAPES)

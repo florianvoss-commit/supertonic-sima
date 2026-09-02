@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-09-02",
+  "destination": {
+    "huggingface_repository": "florianvoss/supertonic-3-sima"
+  },
+  "upstream": {
+    "huggingface_repository": "Supertone/supertonic-3",
+    "revision": "724fb5abbf5502583fb520898d45929e62f02c0b",
+    "supertonic_version": "1.3.1",
+    "vector_estimator_sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c"
+  },
+  "graph_surgery": {
+    "model": {
+      "filename": "supertonic_vector_field_sima.onnx",
+      "size": 256438042,
+      "sha256": "79f6c51e73f4c8c20450fcede73fccbc183f4b22e5e20b78d64bc3aa585def5a"
+    },
+    "runtime_data": {
+      "filename": "supertonic_runtime_data.npz",
+      "size": 9595518,
+      "sha256": "81fc7a131dd0eafe6fa7062b23f49e0dc9e3fb178f5473bf8d404ab555bcf5aa"
+    },
+    "node_count": 1080,
+    "validation": {
+      "cases": 5,
+      "steps": 8,
+      "branches": 2,
+      "comparisons": 80,
+      "max_abs": 0.0,
+      "max_relative_l2": 0.0
+    }
+  },
+  "quantization": {
+    "compiler_version": "2.1.3",
+    "target": "modalix",
+    "calibration": "automatic_random",
+    "activation_precision": "bfloat16",
+    "weight_precision": "int8_symmetric_per_channel",
+    "boundary_precision": "float32",
+    "any_shape_on_mla": true,
+    "mla_tessellation": true,
+    "saved_model": {
+      "filename": "supertonic_vector_field_sima.sima",
+      "size": 68412294,
+      "sha256": "e73da55b9b7129eb525bc818d5f48f245bf805e66d6f79481671e7c9dd8dba3a"
+    }
+  },
+  "compiled": {
+    "archive": {
+      "filename": "supertonic_vector_field_sima_mpk.tar.gz",
+      "size": 110675851,
+      "sha256": "2f6b8c918e0c402453e48bd2686dbea429e6ce1dd98151c940d88229980e8dd2"
+    },
+    "elf": {
+      "filename": "supertonic_vector_field_sima_stage1_mla.elf",
+      "size": 193286608,
+      "sha256": "c01bc5892f86528bbaffdc4a68a0f37fab4dc759e032bc608a4e6d5c6c26c079"
+    },
+    "plugins": {
+      "mla_compute": 1,
+      "ev74_input_cast": 8,
+      "ev74_input_pack": 1,
+      "ev74_output_cast": 1,
+      "a65_compute": 0
+    },
+    "archive_members": [
+      "supertonic_vector_field_sima_mpk.json",
+      "supertonic_vector_field_sima_stage1_mla_stats.yaml",
+      "supertonic_vector_field_sima_stage1_mla.elf",
+      "archived_compile_script.compile_saved_tessellated.py"
+    ]
+  },
+  "production_validation": {
+    "short_english": {
+      "duration_seconds": 4.138976573944092,
+      "step_1_cosine": 0.9999258874,
+      "final_latent_cosine": 0.9795634922,
+      "final_latent_relative_l2": 0.2015483,
+      "waveform_cosine": 0.8355576892,
+      "si_sdr_db": 3.64133594,
+      "report_sha256": "2295a17c3b23f83882caef41ca003f807a313f8ed5d26c36695e7f6dc80ae286"
+    },
+    "near_capacity_english": {
+      "duration_seconds": 12.662311553955078,
+      "text_length": 186,
+      "latent_length": 182,
+      "step_1_cosine": 0.9999305474671325,
+      "final_latent_cosine": 0.9685734460389628,
+      "final_latent_relative_l2": 0.24901539527574634,
+      "waveform_cosine": 0.479882687511546,
+      "si_sdr_db": -5.2419511921985285,
+      "report_sha256": "6437f8373700d207db3003f1c52ed736b1385de42b9eb8a51a7f2d4aabd28b50"
+    }
+  }
+}

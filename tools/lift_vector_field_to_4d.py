@@ -278,8 +278,11 @@ def prune_unused(model: onnx.ModelProto) -> dict[str, int]:
 def rewrite_equal_where_masks(model: onnx.ModelProto) -> Counter:
     """Replace binary-mask Equal/Where patterns with arithmetic masking.
 
-    Pre-softmax key masking becomes ``scores + (1 - reciprocal(mask))``.  For a
-    binary mask this is exactly 0 for valid keys and -inf for invalid keys.
+    Pre-softmax key masking becomes
+    ``scores + ((1 - mask) * finfo(float32).min)``.  For a binary mask this is
+    exactly 0 for valid keys and the smallest finite FP32 value for invalid
+    keys.  Keeping the fill finite avoids NaNs in AFE evaluators and BF16
+    lowering while still underflowing masked Softmax probabilities to zero.
     Post-softmax query masking becomes a direct multiply by the binary mask.
     """
 
@@ -290,6 +293,11 @@ def rewrite_equal_where_masks(model: onnx.ModelProto) -> Counter:
     one_name = "modalix.mask_one"
     if one_name not in initializers:
         make_initializer(model, one_name, np.asarray(1.0, dtype=np.float32))
+    fill_name = "modalix.mask_fill_fp32_min"
+    if fill_name not in initializers:
+        make_initializer(
+            model, fill_name, np.asarray(np.finfo(np.float32).min, dtype=np.float32)
+        )
 
     new_nodes: list[onnx.NodeProto] = []
     rewritten = Counter()
@@ -312,26 +320,26 @@ def rewrite_equal_where_masks(model: onnx.ModelProto) -> Counter:
             )
             rewritten["Where->Mul"] += 1
         elif np.isneginf(scalar):
-            reciprocal = f"{node.output[0]}/modalix_mask_reciprocal"
+            inverted = f"{node.output[0]}/modalix_mask_inverted"
             bias = f"{node.output[0]}/modalix_mask_bias"
             new_nodes.extend(
                 [
                     helper.make_node(
-                        "Reciprocal",
-                        [mask],
-                        [reciprocal],
-                        name=f"{node.name}/modalix_mask_reciprocal",
+                        "Sub",
+                        [one_name, mask],
+                        [inverted],
+                        name=f"{node.name}/modalix_mask_invert",
                     ),
                     helper.make_node(
-                        "Sub",
-                        [one_name, reciprocal],
+                        "Mul",
+                        [inverted, fill_name],
                         [bias],
                         name=f"{node.name}/modalix_mask_bias",
                     ),
                     helper.make_node("Add", [data, bias], list(node.output), name=node.name),
                 ]
             )
-            rewritten["Where->ReciprocalSubAdd"] += 1
+            rewritten["Where->FiniteMinMask"] += 1
         else:
             raise RuntimeError(f"unsupported Where fill {scalar} in {node.name}")
 

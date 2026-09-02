@@ -766,6 +766,178 @@ def make_edge_padding_mask_aware(model: onnx.ModelProto) -> Counter:
     return Counter(edge_pads=len(edge_pads), added_nodes=len(prefix_nodes) + 5 * len(edge_pads))
 
 
+def replace_edge_pads_with_constant_padding(model: onnx.ModelProto) -> Counter:
+    """Express edge padding with zero Pad plus broadcast boundary corrections.
+
+    MLA supports only constant-zero padding.  For fixed width 192, zero-pad the
+    activation, slice its two boundary columns, broadcast each against a mask
+    covering its padding region, then add those corrections.  This is exactly
+    ``Pad(mode="edge")`` while keeping every operation on supported MLA paths.
+    """
+
+    initializers = {
+        value.name: numpy_helper.to_array(value) for value in model.graph.initializer
+    }
+    starts_left = "modalix.edge_pad.left.starts"
+    ends_left = "modalix.edge_pad.left.ends"
+    starts_right = "modalix.edge_pad.right.starts"
+    ends_right = "modalix.edge_pad.right.ends"
+    axes = "modalix.edge_pad.axes"
+    model.graph.initializer.extend(
+        [
+            numpy_helper.from_array(np.asarray([0], dtype=np.int64), name=starts_left),
+            numpy_helper.from_array(np.asarray([1], dtype=np.int64), name=ends_left),
+            numpy_helper.from_array(
+                np.asarray([191], dtype=np.int64), name=starts_right
+            ),
+            numpy_helper.from_array(
+                np.asarray([192], dtype=np.int64), name=ends_right
+            ),
+            numpy_helper.from_array(np.asarray([3], dtype=np.int64), name=axes),
+        ]
+    )
+
+    mask_names: dict[tuple[int, int], tuple[str, str]] = {}
+    nodes: list[onnx.NodeProto] = []
+    result = Counter()
+    for node in model.graph.node:
+        if node.op_type != "Pad":
+            nodes.append(node)
+            continue
+        mode = next(
+            (attr.s for attr in node.attribute if attr.name == "mode"), b"constant"
+        )
+        pads = initializers.get(node.input[1]) if len(node.input) > 1 else None
+        if mode != b"edge" or pads is None:
+            nodes.append(node)
+            continue
+        pads = np.asarray(pads).reshape(-1)
+        if pads.size != 8 or np.any(pads[[0, 1, 2, 4, 5, 6]] != 0):
+            raise RuntimeError(f"unsupported edge-pad geometry: {node.name}: {pads}")
+        left_width, right_width = int(pads[3]), int(pads[7])
+        if left_width < 0 or right_width < 0:
+            raise RuntimeError(f"negative edge padding: {node.name}: {pads}")
+
+        geometry = (left_width, right_width)
+        if geometry not in mask_names:
+            output_width = 192 + left_width + right_width
+            left_mask = np.zeros((1, 1, 1, output_width), dtype=np.float32)
+            right_mask = np.zeros((1, 1, 1, output_width), dtype=np.float32)
+            left_mask[..., :left_width] = 1.0
+            if right_width:
+                right_mask[..., -right_width:] = 1.0
+            left_mask_name = f"modalix.edge_pad.mask.{left_width}.{right_width}.left"
+            right_mask_name = f"modalix.edge_pad.mask.{left_width}.{right_width}.right"
+            model.graph.initializer.extend(
+                [
+                    numpy_helper.from_array(left_mask, name=left_mask_name),
+                    numpy_helper.from_array(right_mask, name=right_mask_name),
+                ]
+            )
+            mask_names[geometry] = (left_mask_name, right_mask_name)
+        left_mask_name, right_mask_name = mask_names[geometry]
+
+        left = f"{node.output[0]}/modalix_left_edge"
+        right = f"{node.output[0]}/modalix_right_edge"
+        zero_padded = f"{node.output[0]}/modalix_zero_padded"
+        left_padding = f"{node.output[0]}/modalix_left_padding"
+        right_padding = f"{node.output[0]}/modalix_right_padding"
+        with_left = f"{node.output[0]}/modalix_with_left_edge"
+        nodes.extend(
+            [
+                helper.make_node(
+                    "Slice",
+                    [node.input[0], starts_left, ends_left, axes],
+                    [left],
+                    name=f"{node.name}/modalix_left_edge",
+                ),
+                helper.make_node(
+                    "Slice",
+                    [node.input[0], starts_right, ends_right, axes],
+                    [right],
+                    name=f"{node.name}/modalix_right_edge",
+                ),
+                helper.make_node(
+                    "Pad",
+                    [node.input[0], node.input[1]],
+                    [zero_padded],
+                    mode="constant",
+                    name=f"{node.name}/modalix_zero_pad",
+                ),
+                helper.make_node(
+                    "Mul",
+                    [left, left_mask_name],
+                    [left_padding],
+                    name=f"{node.name}/modalix_left_padding",
+                ),
+                helper.make_node(
+                    "Mul",
+                    [right, right_mask_name],
+                    [right_padding],
+                    name=f"{node.name}/modalix_right_padding",
+                ),
+                helper.make_node(
+                    "Add",
+                    [zero_padded, left_padding],
+                    [with_left],
+                    name=f"{node.name}/modalix_add_left_edge",
+                ),
+                helper.make_node(
+                    "Add",
+                    [with_left, right_padding],
+                    list(node.output),
+                    name=f"{node.name}/modalix_add_right_edge",
+                ),
+            ]
+        )
+        result["edge_pad_to_zero_pad_and_boundary_add"] += 1
+
+    del model.graph.node[:]
+    model.graph.node.extend(nodes)
+    return result
+
+
+def specialize_singleton_reductions(model: onnx.ModelProto) -> Counter:
+    """Remove singleton channel/height axes from reduction axis lists.
+
+    A reduction over ``[1, 1, 1, 192]`` axes ``[1, 2, 3]`` equals a reduction
+    over axis ``[3]``.  Stating only the non-singleton spatial axis prevents the
+    compiler from treating this mask-length calculation as a channel reduction.
+    """
+
+    # The optimizer deliberately changes several physical layouts before the
+    # final value-info refresh, so use the current declared shapes here rather
+    # than running shape inference on stale intermediate annotations.
+    shapes = shape_map(model)
+    initializers = {
+        value.name: numpy_helper.to_array(value) for value in model.graph.initializer
+    }
+    result = Counter()
+    serial = 0
+    for node in model.graph.node:
+        if node.op_type not in {"ReduceSum", "ReduceMean"} or len(node.input) < 2:
+            continue
+        shape = shapes.get(node.input[0])
+        axes = initializers.get(node.input[1])
+        if not shape or axes is None:
+            continue
+        normalized = [
+            int(axis if axis >= 0 else axis + len(shape))
+            for axis in np.asarray(axes).reshape(-1)
+        ]
+        reduced = [axis for axis in normalized if shape[axis] != 1]
+        if not reduced or reduced == normalized:
+            continue
+        axes_name = f"modalix.non_singleton_reduce_axes.{serial}"
+        model.graph.initializer.append(
+            numpy_helper.from_array(np.asarray(reduced, dtype=np.int64), name=axes_name)
+        )
+        node.input[1] = axes_name
+        result[f"{node.op_type}_singleton_axes_removed"] += len(normalized) - len(reduced)
+        serial += 1
+    return result
+
+
 def fuse_time_projections(model: onnx.ModelProto) -> Counter:
     """Fuse four identical-layout time projections into one channel-first Conv.
 
@@ -897,6 +1069,8 @@ def optimize(source: Path, output: Path) -> dict[str, object]:
     time_encoder = rewrite_time_encoder_channel_first(model)
     time_projections = fuse_time_projections(model)
     edge_padding = make_edge_padding_mask_aware(model)
+    edge_pad_decomposition = replace_edge_pads_with_constant_padding(model)
+    singleton_reductions = specialize_singleton_reductions(model)
     removed_initializers = prune_initializers(model)
     del model.graph.value_info[:]
     inferred = shape_inference.infer_shapes(model, strict_mode=True, data_prop=True)
@@ -954,6 +1128,8 @@ def optimize(source: Path, output: Path) -> dict[str, object]:
         "time_encoder_rewrite": dict(time_encoder),
         "time_projection_rewrite": dict(time_projections),
         "edge_padding_rewrite": dict(edge_padding),
+        "edge_pad_decomposition": dict(edge_pad_decomposition),
+        "singleton_reduction_rewrite": dict(singleton_reductions),
         "removed_initializers": removed_initializers,
         "forbidden_ops": forbidden,
         "non_layernorm_transposes": non_norm_transposes,
