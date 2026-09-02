@@ -19,7 +19,15 @@ def main() -> int:
     parser.add_argument("--model-name", required=True)
     parser.add_argument("--output-directory", type=Path, required=True)
     parser.add_argument("--compiler-debug-directory", type=Path, required=True)
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=1,
+        help="Effective leading batch dimension exposed by the compiled MPK.",
+    )
     args = parser.parse_args()
+    if args.batch_size < 1:
+        raise ValueError("--batch-size must be positive")
 
     model = Model.load(
         model_name=args.model_name,
@@ -57,13 +65,14 @@ def main() -> int:
         )
 
     print(f"segments={segments}", flush=True)
+    print(f"batch_size={args.batch_size}", flush=True)
     print(f"tessellated_inputs={list(mla_node.input_names)}", flush=True)
     print(f"tessellated_outputs={output_names}", flush=True)
     args.output_directory.mkdir(parents=True, exist_ok=True)
     args.compiler_debug_directory.parent.mkdir(parents=True, exist_ok=True)
     model.compile(
         output_path=str(args.output_directory),
-        batch_size=1,
+        batch_size=args.batch_size,
         compress=True,
         preserve=True,
         deployable=False,

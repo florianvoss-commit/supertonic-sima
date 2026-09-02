@@ -8,7 +8,8 @@
     "huggingface_repository": "Supertone/supertonic-3",
     "revision": "724fb5abbf5502583fb520898d45929e62f02c0b",
     "supertonic_version": "1.3.1",
-    "vector_estimator_sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c"
+    "vector_estimator_sha256": "883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c",
+    "vocoder_sha256": "085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba"
   },
   "graph_surgery": {
     "model": {
@@ -92,5 +93,12 @@
       "si_sdr_db": -5.2419511921985285,
       "report_sha256": "6437f8373700d207db3003f1c52ed736b1385de42b9eb8a51a7f2d4aabd28b50"
     }
+  },
+  "vocoder_bfloat16": {
+    "manifest": "vocoder_bf16_manifest.json",
+    "graph_sha256": "b6d233bb3cd6062f613fcc2e8b9192b1447408db06995b215f1da0d66f1a9684",
+    "archive_sha256": "90b2d6a089c8527826dd1d0cb5b557316ac703045f422d6e1332deeabd84e0cb",
+    "short_english_cosine": 0.9921128685016826,
+    "near_capacity_english_cosine": 0.9956859722093101
   }
 }

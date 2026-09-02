@@ -1,12 +1,14 @@
 # Supertonic 3 on SiMa Modalix
 
-This repository makes the Supertonic 3 vector estimator suitable for a fixed
-SiMa Modalix profile, validates it against the released ONNX model, and
-documents the BF16-activation/INT8-weight compilation flow.
+This repository makes the Supertonic 3 vector estimator and vocoder suitable
+for a fixed SiMa Modalix profile, validates them against the released ONNX
+models, and documents both compiled precision profiles.
 
-The current compiled model is one `MLA_0` compute partition. It is not split
-into the 58 partitions produced by the original graph. FP32/BF16 casts and the
-I/O packing transform remain on EV74 as expected.
+The vector field uses BF16 activations with INT8 weights; the vocoder uses BF16
+activations and weights to preserve its quantization-sensitive output head.
+Each compiled model has one `MLA_0` compute partition instead of the 58
+partitions produced by the original graph. FP32/BF16 boundary casts and vector
+field I/O packing remain on EV74 as expected.
 
 ## Deployment split
 
@@ -17,16 +19,15 @@ I/O packing transform remain on EV74 as expected.
 | Text encoder | 1 | A65 / ONNX Runtime |
 | Vector field | 2 branches × 8 steps | Modalix MLA |
 | CFG and Euler update | 8 | A65 |
-| Vocoder | 1 | A65 / ONNX Runtime |
+| Vocoder | 1 | Modalix MLA; A65 / ONNX Runtime fallback |
 
-The vector estimator represented about 90% of measured CPU inference time for
-a 12.66-second test utterance. The vocoder is the next candidate for MLA only
-if measurement on the target A65 shows that it cannot meet the latency goal.
+The vector estimator and full-BF16 vocoder are compiled for MLA. The CPU models
+and host-side CFG/Euler update remain unchanged.
 
 ## Fixed compiled contract
 
-All boundary tensors are FP32. Computation uses BF16 activations and symmetric
-per-channel INT8 weights.
+All boundary tensors are FP32. The vector field uses BF16 activations and
+symmetric per-channel INT8 weights. The vocoder uses full BF16 internally.
 
 | Index | Input | Shape |
 |---:|---|---|
@@ -41,6 +42,16 @@ per-channel INT8 weights.
 
 Output: `velocity`, shape `[1, 144, 1, 192]`, FP32.
 
+The fixed vocoder contract accepts the vector field's 4D latent directly:
+
+| Index | Input | Shape |
+|---:|---|---|
+| 0 | `latent` | `[1, 144, 1, 192]` |
+
+Vocoder output: `wav_frames`, logical NCHW shape `[1, 512, 1, 1152]`, FP32.
+With HWC/HWC16 output tessellation, the raw bytes are time-major 512-sample
+frames and can be read as one 589,824-sample waveform without a host transpose.
+
 The host selects `time_sinusoidal` by denoising step and selects the two RoPE
 sin/cos pairs by the effective latent and text-mask lengths. The host invokes
 the same MLA graph for the conditional and unconditional branches, then applies
@@ -54,13 +65,16 @@ revision:   724fb5abbf5502583fb520898d45929e62f02c0b
 package:    supertonic==1.3.1
 vector estimator SHA-256:
 883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c
+vocoder SHA-256:
+085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba
 ```
 
 Generated weights, ONNX files, NPZ files, WAV files, compiler output, and model
 archives are intentionally ignored by Git. The compiled release belongs in
 [`florianvoss/supertonic-3-sima`](https://huggingface.co/florianvoss/supertonic-3-sima).
 Recorded hashes and validation metrics are in
-[`artifacts/manifest.json`](artifacts/manifest.json).
+[`artifacts/manifest.json`](artifacts/manifest.json) and
+[`artifacts/vocoder_bf16_manifest.json`](artifacts/vocoder_bf16_manifest.json).
 
 ## 1. Prepare the graph-surgery environment
 
@@ -73,6 +87,7 @@ python3.12 -m venv .venv
   numpy==2.5.2 \
   onnx==1.17.0 \
   onnxruntime==1.22.1 \
+  'onnxsim>=0.4.36,<0.5' \
   huggingface_hub
 ```
 
@@ -85,6 +100,8 @@ mkdir -p models
   --local-dir models/supertonic-3
 
 echo '883ac868ea0275ef0e991524dc64f16b3c0376efd7c320af6b53f5b780d7c61c  models/supertonic-3/onnx/vector_estimator.onnx' \
+  | sha256sum --check
+echo '085de76dd8e8d5836d6ca66826601f615939218f90e519f70ee8a36ed2a4c4ba  models/supertonic-3/onnx/vocoder.onnx' \
   | sha256sum --check
 ```
 
@@ -110,11 +127,14 @@ mkdir -p testdata/reference_cases
 `graph_surgery.py` is the single public graph-preparation command. It
 staticizes the wrapper, extracts the batch-one vector field, lifts data tensors
 to rank four, applies MLA-oriented attention/padding rewrites, externalizes the
-timestep and RoPE calculations, and validates all five reference cases.
+timestep and RoPE calculations, and validates all five reference cases. It also
+staticizes the vocoder, converts Conv1D to Conv2D, replaces its input pixel
+shuffle with `DepthToSpace`, and exposes native HWC-readable waveform frames.
 
 ```bash
 .venv/bin/python tools/graph_surgery.py \
   --source models/supertonic-3/onnx/vector_estimator.onnx \
+  --vocoder-source models/supertonic-3/onnx/vocoder.onnx \
   --reference-dir testdata/reference_cases \
   --output-dir build/surgery \
   --steps 8
@@ -126,11 +146,20 @@ Final outputs:
 |---|---|
 | `supertonic_vector_field_sima.onnx` | `79f6c51e73f4c8c20450fcede73fccbc183f4b22e5e20b78d64bc3aa585def5a` |
 | `supertonic_runtime_data.npz` | `81fc7a131dd0eafe6fa7062b23f49e0dc9e3fb178f5473bf8d404ab555bcf5aa` |
+| `supertonic_vocoder_sima.onnx` | `b6d233bb3cd6062f613fcc2e8b9192b1447408db06995b215f1da0d66f1a9684` |
 
 The final graph contains 1,080 nodes and no live `Sin`, `Cos`, `Gather`,
 `Squeeze`, `Unsqueeze`, `Equal`, `Where`, `Reshape`, or `Identity` nodes. The
 five-case, eight-step, two-branch surgery gate performs 80 comparisons and is
 bit-exact against the pre-externalized graph.
+
+The vocoder graph contains no `Reshape` nodes. Its two non-LayerNorm
+transposes are removed, leaving only the 20 semantic transpose nodes surrounding
+the ten channel-wise LayerNorm operations. One `DepthToSpace(CRD, blocksize=6)`
+replaces the input channel-to-time shuffle, and all 12 edge pads are expressed
+as exact static `Slice`/`Concat` replication. Every data activation is rank
+four. Two waveform comparisons reached cosine `0.9999999999678247` or better,
+with maximum relative L2 error `8.03e-6`.
 
 ## 4. Audit, quantize, and compile
 
@@ -178,9 +207,40 @@ python tools/compile_saved_tessellated.py \
   --compiler-debug-directory build/modalix-bf16-int8w/compiler-debug
 ```
 
-The recorded MPK contains one MLA compute plugin, eight FP32-to-BF16 input
-casts, one input pack transform, and one output cast. It contains no A65 compute
-partition.
+The recorded vector-field MPK contains one MLA compute plugin, eight
+FP32-to-BF16 input casts, one input pack transform, and one output cast. It
+contains no A65 compute partition.
+
+### Full-BF16 vocoder
+
+The vocoder's INT8 weights cause a sparse positive activation mask to collapse
+before its near-zero-slope PReLU. Full BF16 avoids that catastrophic failure.
+Quantize and compile the prepared vocoder with:
+
+```bash
+python /home/florian.voss/.codex_sw-u24-llm/skills/quantize_compile/scripts/quantize_compile.py \
+  --model_path build/surgery/supertonic_vocoder_sima.onnx \
+  --model_format onnx --model_layout NCHW \
+  --input_names latent --input_shapes 1,144,1,192 \
+  --output_names wav_frames --device modalix \
+  --build_dir build/vocoder-modalix-bf16-bf16w \
+  --no-simplify --bf16-activations --bf16-weights \
+  --any_shape_on_mla --mla-tesselation \
+  --verify --executor jax --no-compile
+
+python tools/compile_saved_tessellated.py \
+  --network-directory build/vocoder-modalix-bf16-bf16w/supertonic_vocoder_sima \
+  --model-name supertonic_vocoder_sima \
+  --output-directory build/vocoder-modalix-bf16-bf16w/compiled \
+  --compiler-debug-directory build/vocoder-modalix-bf16-bf16w/compiler-debug
+```
+
+The resulting MPK has one MLA compute plugin, two expected EV74 boundary casts,
+and no A65 compute partition. Its compiler cycle estimate is `11,625,345`.
+It is published as `supertonic_vocoder_sima_bf16_mpk.tar.gz` in the Hugging
+Face repository linked above.
+See [`artifacts/vocoder_bf16_manifest.json`](artifacts/vocoder_bf16_manifest.json)
+for hashes and validation details.
 
 ## 5. Run without the Supertonic package
 
@@ -233,13 +293,23 @@ For perceptual diagnostics, compare generated WAVs with
 `tools/analyze_mel_distance.py`; direct waveform cosine is very sensitive to
 small phase and timing shifts.
 
+For the vocoder, full BF16 improves cropped waveform cosine from
+`0.420`–`0.444` with INT8 weights to `0.992`–`0.996`. Relative L2 improves from
+`0.897`–`0.909` to `0.093`–`0.125`. The saved FP32 and quantized AFE graphs were
+also compared across all 178 analyzable layers, independently of ONNX/AFE
+layout conversion.
+
 ## Repository layout
 
 - `tools/graph_surgery.py` — main graph-surgery entry point
+- `tools/optimize_vocoder_4d.py` — static all-4D vocoder transformation
 - `tools/run_sima_onnx.py` — package-free ONNX production runtime
 - `tools/compile_saved_tessellated.py` — retained one-MLA packaging step
 - `tools/verify_production_quantized.py` — real eight-step AFE validation
+- `tools/verify_vocoder_quantized.py` — exact saved-vocoder AFE/ONNX comparison
+- `tools/analyze_vocoder_quantization.py` — cumulative and local-feed layer-error tracing
 - `tools/analyze_mel_distance.py` — multi-resolution log-mel comparison
 - `tools/model_contract.py` — source, pre-external, and final tensor contracts
 - `artifacts/manifest.json` — recorded compilation and validation provenance
+- `artifacts/vocoder_bf16_manifest.json` — full-BF16 vocoder provenance and validation
 - `IMPLEMENTATION_PLAN.md` — current status and remaining deployment work

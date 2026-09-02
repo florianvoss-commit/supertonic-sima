@@ -2,9 +2,9 @@
 
 ## Goal
 
-Run Supertonic 3 speech synthesis with its iterative vector field on Modalix
-MLA and the remaining pipeline on the embedded A65. Use sentence-sized chunks
-and a single fixed batch-one, 192-position MLA profile.
+Run Supertonic 3 speech synthesis with its iterative vector field and vocoder
+on Modalix MLA, with preprocessing and the smaller models on the embedded A65.
+Use sentence-sized chunks and a fixed 192-position MLA profile.
 
 ## Current status
 
@@ -19,9 +19,12 @@ and a single fixed batch-one, 192-position MLA profile.
 | Quantize BF16 activations / INT8 weights | Complete |
 | Compile as one tessellated MLA segment | Complete |
 | Validate real eight-step quantized production loop | Complete |
+| Staticize and convert vocoder to all-4D MLA graph | Complete |
+| Validate vocoder surgery against released ONNX | Complete |
+| Quantize and compile vocoder on MLA | Complete; full BF16 selected |
 | Run compiled MPK on Modalix hardware | Pending |
 | Integrate a persistent `pyneat` worker | Pending |
-| Publish refreshed Hugging Face artifacts | Pending |
+| Publish refreshed Hugging Face artifacts | Complete for vector field and BF16 vocoder |
 
 ## Fixed profile and interface
 
@@ -30,8 +33,8 @@ and a single fixed batch-one, 192-position MLA profile.
 - Maximum latent length: `192`
 - Maximum audio duration: approximately `13.37 s`
 - Boundary dtype: FP32
-- Activation precision: BF16
-- Weight precision: symmetric per-channel INT8
+- Vector-field precision: BF16 activations, symmetric per-channel INT8 weights
+- Vocoder precision: BF16 activations and weights
 - Denoising steps: `8`
 - Branches per step: conditional and unconditional
 
@@ -49,6 +52,11 @@ Final ordered input contract:
 | 7 | `rope_tables` | `[1, 128, 1, 192]` |
 
 Output: `velocity`, `[1, 144, 1, 192]`, FP32.
+
+Vocoder input: `latent`, `[1, 144, 1, 192]`, FP32.
+
+Vocoder output: `wav_frames`, `[1, 512, 1, 1152]`, FP32. With HWC/HWC16
+tessellation its bytes are already in time-major waveform order.
 
 The previous internal `current_step` and `total_step` inputs are not part of
 the final contract. The host selects one precomputed timestep row and packs
@@ -73,6 +81,16 @@ The final ONNX has 1,080 nodes. The externalization gate covers five reference
 cases, eight steps, and both branches: 80 comparisons with zero observed
 difference from the pre-externalized graph.
 
+The same entry point optionally processes the vocoder. It replaces the input
+Reshape/Transpose/Reshape pixel shuffle with one supported
+`DepthToSpace(CRD, blocksize=6)`, lifts all Conv1D operations to Conv2D, removes
+the final waveform transpose/flatten, and converts all 12 edge pads to exact
+static Slice/Concat replication. The result has zero Reshape nodes and all data
+activations are rank four. The 20 remaining Transposes are the semantic pairs
+around the ten channel-wise LayerNorm operations. Two real-latent waveform
+comparisons pass with maximum relative L2 error `8.03e-6` and minimum cosine
+`0.9999999999678247`.
+
 ## Completed compilation
 
 Recorded environment and configuration:
@@ -93,6 +111,11 @@ only those boundary helpers; no model computation is partitioned to A65/APU.
 
 Artifact hashes, sizes, and validation metrics are recorded in
 `artifacts/manifest.json`.
+
+The full-BF16 vocoder also compiles into exactly one `MLA_0` partition with one
+input cast, one output cast, and no A65/APU compute partition. Its cycle
+estimate is `11,625,345`. Separate provenance is recorded in
+`artifacts/vocoder_bf16_manifest.json`.
 
 ## Accuracy findings
 
@@ -125,10 +148,12 @@ The first application version should use:
 1. A65 text normalization and Unicode indexing.
 2. A65 ONNX Runtime duration prediction and text encoding.
 3. A65 allocation/padding of the fixed input buffers.
-4. A persistent `pyneat.Model` and runner for the MPK.
+4. Persistent `pyneat.Model` instances and runners for both MPKs.
 5. Two MLA executions per denoising step.
 6. A65 FP32 classifier-free guidance and Euler update.
-7. A65 ONNX Runtime vocoding of the cropped natural-length latent.
+7. One full-BF16 MLA vocoder invocation using the padded fixed latent; crop the
+   time-major waveform output to `natural_latent_length * 3072` samples. Retain
+   A65 ONNX Runtime as a fallback.
 8. Sentence/clause chunking, followed by silence-aware joining or a short
    crossfade.
 
@@ -155,11 +180,16 @@ manifest during worker startup.
 - Return the natural-length latent plus timing and health information.
 - Recover cleanly from malformed requests and runner failures.
 
-### 3. A65 pipeline benchmark
+### 3. Vocoder MLA compilation
 
-The vector estimator was about 90% of CPU model time in the recorded x86
-profile. After MLA offload, benchmark the 25.3M-parameter vocoder on the actual
-A65. Compile the vocoder for MLA only if it prevents real-time streaming.
+Target measurements show the 25.3M-parameter A65 vocoder is the dominant CPU
+stage. The prepared graph compiles as one MLA plugin with only FP32 boundary
+casts on EV74 and no A65 partition. INT8 weights are rejected because the
+output-head PReLU amplifies their error: cropped cosine is only
+`0.420`–`0.444`. Full BF16 raises cropped cosine to `0.992`–`0.996` and reduces
+relative L2 from `0.897`–`0.909` to `0.093`–`0.125`. Hardware latency and
+listening validation remain required; the compiler cycle estimate is
+`11,625,345`.
 
 ### 4. Live-assistant chunking
 
@@ -180,6 +210,8 @@ Update `florianvoss/supertonic-3-sima` with:
 - compiler and upstream provenance
 - the production validation report
 - optional ONNX/quantized listening samples
+- `supertonic_vocoder_sima_bf16_mpk.tar.gz`
+- `vocoder_bf16_manifest.json` and the BF16-versus-ONNX validation report
 
 Do not upload compiler-debug `.mlc` files. The ELF and MPK JSON are already
 contained in the tarball.
