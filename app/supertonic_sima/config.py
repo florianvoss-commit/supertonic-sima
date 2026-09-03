@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 from .engine import DEFAULT_ASSET_ROOT, SupertonicModalix
+from .inputs import DEFAULT_STEPS
 
 
 def add_engine_arguments(parser: argparse.ArgumentParser) -> None:
@@ -44,6 +45,13 @@ def add_engine_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--threads", type=int, default=min(8, os.cpu_count() or 1))
     parser.add_argument("--timeout-ms", type=int, default=120_000)
+    parser.add_argument(
+        "--steps",
+        type=int,
+        choices=range(5, 13),
+        default=DEFAULT_STEPS,
+        help="Euler denoising steps (5-12; default: 8)",
+    )
     parser.add_argument("--skip-hash-check", action="store_true")
 
 
@@ -63,4 +71,5 @@ def create_engine(args: argparse.Namespace) -> SupertonicModalix:
         threads=args.threads,
         timeout_ms=args.timeout_ms,
         verify_hashes=not args.skip_hash_check,
+        steps=args.steps,
     )

@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SUPERTONIC_REPO_ROOT:-$(cd -- "${SCRIPT_DIR}/.." && pwd)}"
-APP_ROOT="${SUPERTONIC_APP_ROOT:-/media/nvme/llima/supertonic-tts}"
+APP_ROOT="${SUPERTONIC_APP_ROOT:-/media/nvme/supertonic-tts}"
 VENV="${APP_ROOT}/.venv"
 MODEL_ROOT="${APP_ROOT}/models"
 UPSTREAM_DIR="${MODEL_ROOT}/supertonic-3"

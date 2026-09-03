@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Build the final static SiMa vector-field ONNX graph.
 
-The specialized transformation modules remain independently testable, but this
-is the public graph-surgery entry point.  It extracts the batch-one vector
+This is the public graph-surgery entry point. It extracts the batch-one vector
 field, lifts all data activations to rank four, applies the MLA-oriented graph
 rewrites, and externalizes timestep/RoPE values and CFG constants.
 """
@@ -14,17 +13,10 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
-import subprocess
-import sys
 from typing import Any
 
-COMMON_DIR = Path(__file__).resolve().parents[1] / "common"
-sys.path.insert(0, str(COMMON_DIR))
-
-from extract_vector_field import extract  # noqa: E402
-from lift_vector_field_to_4d import lift  # noqa: E402
-from model_contract import SOURCE_SHA256  # noqa: E402
-from optimize_vector_field_4d import optimize  # noqa: E402
+from contract import SOURCE_SHA256
+from transforms import externalize, extract, lift, optimize, staticize
 
 
 DEFAULT_CASES = (
@@ -107,12 +99,9 @@ def main() -> int:
     report_path = output_dir / "graph_surgery.json"
     write_json(report_path, report)
 
-    staticizer = COMMON_DIR / "staticize_vector_estimator.py"
     staticize_report = reports_dir / "staticize.json"
-    completed = subprocess.run(
+    report["stages"]["staticize"] = staticize(
         [
-            sys.executable,
-            str(staticizer),
             "--input",
             str(source),
             "--output",
@@ -120,17 +109,8 @@ def main() -> int:
             "--report",
             str(staticize_report),
         ],
-        check=False,
-        capture_output=True,
-        text=True,
+        emit=False,
     )
-    if completed.returncode != 0:
-        raise RuntimeError(
-            "staticization failed\n"
-            f"stdout:\n{completed.stdout}\n"
-            f"stderr:\n{completed.stderr}"
-        )
-    report["stages"]["staticize"] = json.loads(staticize_report.read_text())
 
     # Extract from the static wrapper. Extracting directly from the symbolic
     # source would make the rank lifter conservatively map unknown lengths to
@@ -142,39 +122,24 @@ def main() -> int:
     report["stages"]["optimize"] = optimize(all4d, optimized)
     write_json(reports_dir / "optimize.json", report["stages"]["optimize"])
 
-    externalizer = COMMON_DIR / "externalize_sinusoidal_tables.py"
-    command = [
-        sys.executable,
-        str(externalizer),
-        "--input",
-        str(optimized),
-        "--output",
-        str(final_model),
-        "--table",
-        str(runtime_data),
-        "--report",
-        str(externalize_report),
-        "--source-wrapper",
-        str(source),
-        "--reference-case",
-        *(str(path) for path in references),
-        "--steps",
-        str(args.steps),
-    ]
-    completed = subprocess.run(
-        command,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if completed.returncode != 0:
-        raise RuntimeError(
-            "sinusoidal-input surgery failed\n"
-            f"stdout:\n{completed.stdout}\n"
-            f"stderr:\n{completed.stderr}"
-        )
-    report["stages"]["externalize"] = json.loads(
-        externalize_report.read_text()
+    report["stages"]["externalize"] = externalize(
+        [
+            "--input",
+            str(optimized),
+            "--output",
+            str(final_model),
+            "--table",
+            str(runtime_data),
+            "--report",
+            str(externalize_report),
+            "--source-wrapper",
+            str(source),
+            "--reference-case",
+            *(str(path) for path in references),
+            "--steps",
+            str(args.steps),
+        ],
+        emit=False,
     )
 
     report["status"] = "passed"

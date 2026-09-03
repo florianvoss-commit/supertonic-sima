@@ -13,13 +13,15 @@ The upstream model is pinned to revision
 
 ```text
 compilation/
-  common/                 shared graph and compiler helpers
+  reference_cases.py      deterministic end-to-end validation fixtures
   vector_estimator/
-    graph_surgery.py
-    compile.py
+    graph_surgery.py       public surgery pipeline
+    transforms.py          private transformation implementation
+    contract.py            fixed source and compiled tensor contracts
+    compile.py             vector-estimator MPK packaging
   vocoder/
-    graph_surgery.py
-    compile.py
+    graph_surgery.py       complete vocoder surgery pipeline
+    compile.py             vocoder MPK packaging
 app/
   supertonic_sima/        persistent hybrid runtime
   examples/
@@ -32,21 +34,25 @@ requirements-devkit.txt
 ```
 
 Generated models, compiler output, reports, and audio belong under ignored
-workspace paths such as `build/`, `models/`, or `/media/nvme/llima`.
+workspace paths such as `build/`, `models/`, or `/media/nvme/supertonic-tts`.
 
 ## DevKit setup
 
 Run this repository on the DevKit. The script creates an isolated virtual
-environment under `/media/nvme/llima`, installs ONNX Runtime and PyNeat, and
-downloads the upstream CPU models plus compiled MLA models.
+environment under `/media/nvme/supertonic-tts`, downloads the matching PyNeat wheel with
+`sima-cli neat install core -t pyneat`, installs ONNX Runtime and PyNeat into
+that environment, and downloads the upstream CPU models plus compiled MLA
+models. An existing application environment is recreated to keep the install
+isolated and reproducible.
 
 ```bash
 bash scripts/setup_devkit.sh
-source /media/nvme/llima/supertonic-tts/.venv/bin/activate
+source /media/nvme/supertonic-tts/.venv/bin/activate
 ```
 
-Override `PYNEAT_WHEEL`, `SUPERTONIC_APP_ROOT`, or `SUPERTONIC_REPO_ROOT` when
-the local DevKit paths differ.
+Override `SUPERTONIC_APP_ROOT` or `SUPERTONIC_REPO_ROOT` when the local DevKit
+paths differ. The DevKit must have `sima-cli` installed and configured to access
+the Neat artifacts.
 
 ## Examples
 
@@ -56,18 +62,33 @@ measured runs reuse those objects.
 ```bash
 python app/examples/simple.py \
   --text "Hello from Modalix." --voice M1 --lang en \
-  --output /media/nvme/llima/supertonic-tts/output/hello.wav
+  --output /media/nvme/supertonic-tts/output/hello.wav
 ```
 
 The CLI prints audio length, generation time, real-time factor, latent length,
-and per-stage latency. Use `--runs N` for repeated warm measurements or
-`--vocoder-backend cpu` to compare the upstream CPU vocoder.
+and per-stage latency. The default is eight denoising steps; use `--steps 12`
+to compare the higher-quality schedule, `--runs N` for repeated warm
+measurements, or `--vocoder-backend cpu` to compare the upstream CPU vocoder.
 
 Start the browser UI:
 
 ```bash
 python app/examples/gui.py --host 0.0.0.0 --port 8080
 ```
+
+The browser fills the 192-character processed-text envelope and splits long
+text at `.`, `!`, `?`, `:`, and `;` boundaries, including their Japanese/CJK
+forms such as `。`, `！`, `？`, and `…`. An oversized segment falls back to
+commas, then whitespace or a hard boundary. It synthesizes chunks sequentially
+and starts playback as soon as the first chunk is ready while subsequent chunks
+are synthesized into the continuous Web Audio queue. Inter-chunk outputs have
+their generated trailing silence removed with a short retained tail and fade;
+the final chunk remains unchanged.
+
+The server logs each chunk's complete JSON-escaped text together with its
+position and split boundary, raw/processed lengths, synthesis settings, latent
+frames, audio duration, generation time, and RTF. The browser console
+additionally reports the complete chunk plan and per-chunk trimming measurements.
 
 Start the speech endpoint:
 
@@ -107,6 +128,11 @@ It emits FP32 `velocity [1,144,1,192]`. The vocoder accepts FP32
 order is already time-major, so the runtime crops a flat view to the natural
 predicted length.
 
+The host creates the denoising timestep embeddings in memory for the selected
+`--steps` value. Runtime data stores only the RoPE bank and CFG/style constants;
+the app remains compatible with older archives that also contain a timestep
+table.
+
 Processed text and predicted latent length must both be at most 192. The
 latent profile represents about 13.37 seconds at 44.1 kHz.
 
@@ -120,7 +146,7 @@ python3 -m venv .venv-graph
 .venv-graph/bin/pip install -r compilation/requirements.txt
 python3 -m venv .venv-reference
 .venv-reference/bin/pip install supertonic==1.3.1
-.venv-reference/bin/python compilation/common/generate_reference_cases.py \
+.venv-reference/bin/python compilation/reference_cases.py \
   --model-dir models/supertonic-3 \
   --output-dir build/reference-cases \
   --summary build/reference-cases.json

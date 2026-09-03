@@ -20,6 +20,7 @@ import pyneat
 
 from .inputs import (
     CONDITIONAL_STYLE_KEY,
+    DEFAULT_STEPS,
     MAX_SEQUENCE_LENGTH,
     ROPE_TABLE_KEY,
     RUNTIME_CONSTANT_KEYS,
@@ -27,6 +28,7 @@ from .inputs import (
     UNCONDITIONAL_STYLE_KEY,
     UNCONDITIONAL_STYLE_VALUE,
     UNCONDITIONAL_TEXT,
+    build_time_table,
     pack_rope_input,
     validate_rope_bank,
 )
@@ -34,8 +36,8 @@ from .text import MAX_SPEED, MIN_SPEED, preprocess_text
 
 
 UPSTREAM_REVISION = "724fb5abbf5502583fb520898d45929e62f02c0b"
-DEFAULT_ASSET_ROOT = Path("/media/nvme/llima/supertonic-tts/models")
-DEFAULT_OUTPUT_ROOT = Path("/media/nvme/llima/supertonic-tts/output")
+DEFAULT_ASSET_ROOT = Path("/media/nvme/supertonic-tts/models")
+DEFAULT_OUTPUT_ROOT = Path("/media/nvme/supertonic-tts/output")
 BASE_PHYSICAL_INPUTS = (
     ("noisy_latent", (1, 144, 1, 192)),
     ("text_emb", (1, 256, 1, 192)),
@@ -252,6 +254,7 @@ class SupertonicModalix:
         threads: int,
         timeout_ms: int,
         verify_hashes: bool,
+        steps: int = DEFAULT_STEPS,
     ) -> None:
         self.model_dir = model_dir.resolve()
         self.mpk_path = mpk_path.resolve()
@@ -260,6 +263,9 @@ class SupertonicModalix:
         self.vocoder_backend = vocoder_backend
         self.vocoder_mpk_path = vocoder_mpk_path.resolve()
         self.vocoder_manifest_path = vocoder_manifest_path.resolve()
+        if steps < 1:
+            raise ValueError("steps must be positive")
+        self.steps = steps
         self.timeout_ms = timeout_ms
         self.runner = None
         self.vocoder_runner = None
@@ -289,17 +295,30 @@ class SupertonicModalix:
             )
 
         with np.load(self.runtime_data_path) as archive:
-            self.time_table = np.asarray(archive[TIME_TABLE_KEY], dtype=np.float32).copy()
+            archived_time_table = (
+                np.asarray(archive[TIME_TABLE_KEY], dtype=np.float32).copy()
+                if TIME_TABLE_KEY in archive
+                else None
+            )
             self.rope_table = validate_rope_bank(archive[ROPE_TABLE_KEY]).copy()
             self.constants = {
                 name: np.asarray(archive[name], dtype=np.float32).copy()
                 for name in RUNTIME_CONSTANT_KEYS
             }
-        if self.time_table.shape != (8, *BASE_PHYSICAL_INPUTS[6][1]):
-            raise ValueError(
-                f"time table shape {self.time_table.shape} != "
-                f"{(8, *BASE_PHYSICAL_INPUTS[6][1])}"
-            )
+        if archived_time_table is not None:
+            if (
+                archived_time_table.ndim != 5
+                or archived_time_table.shape[1:] != BASE_PHYSICAL_INPUTS[6][1]
+            ):
+                raise ValueError(
+                    f"time table shape {archived_time_table.shape} has an invalid contract"
+                )
+            expected_archived_table = build_time_table(archived_time_table.shape[0])
+            if not np.allclose(
+                archived_time_table, expected_archived_table, rtol=0.0, atol=1e-7
+            ):
+                raise ValueError("archived time table does not match the pinned model")
+        self.time_table = build_time_table(self.steps)
 
         session_options = ort.SessionOptions()
         session_options.intra_op_num_threads = threads
@@ -516,7 +535,7 @@ class SupertonicModalix:
     def _run_vocoder(
         self, padded_latent: np.ndarray, natural_latent_length: int
     ) -> np.ndarray:
-        natural_samples = natural_latent_length * self.chunk_size
+        decoded_samples = natural_latent_length * self.chunk_size
         if self.vocoder_backend == "cpu":
             if self.vocoder_session is None:
                 raise RuntimeError("CPU vocoder session is closed")
@@ -525,10 +544,10 @@ class SupertonicModalix:
             )
             output = self.vocoder_session.run(None, {"latent": natural_latent})[0]
             waveform = np.asarray(output, dtype=np.float32).reshape(-1)
-            if waveform.size != natural_samples:
+            if waveform.size != decoded_samples:
                 raise RuntimeError(
                     f"CPU vocoder returned {waveform.size} samples; "
-                    f"expected {natural_samples}"
+                    f"expected {decoded_samples}"
                 )
             return waveform
 
@@ -545,14 +564,14 @@ class SupertonicModalix:
         frames = _first_public_output_array(
             output, expected_public_shape=self.vocoder_public_output
         )
-        if natural_samples > frames.size:
+        if decoded_samples > frames.size:
             raise RuntimeError(
-                f"requested {natural_samples} vocoder samples from {frames.size}"
+                f"requested {decoded_samples} vocoder samples from {frames.size}"
             )
         # The public HWC buffer is already time-major: [frame][512 samples].
         # Reshape is only a view; copy the cropped region so the unused static
         # profile tail is not retained by the synthesis result.
-        return frames.reshape(-1)[:natural_samples].copy()
+        return frames.reshape(-1)[:decoded_samples].copy()
 
     def synthesize(
         self,
@@ -620,7 +639,7 @@ class SupertonicModalix:
         timings["host_preparation_seconds"] = perf_counter() - started
 
         started = perf_counter()
-        for step in range(8):
+        for step in range(self.steps):
             branch_outputs: list[np.ndarray] = []
             for conditional in (True, False):
                 if conditional:
@@ -643,7 +662,8 @@ class SupertonicModalix:
             padded_latent = (
                 (
                     padded_latent
-                    + (4.0 * conditional_output - 3.0 * unconditional_output) / 8.0
+                    + (4.0 * conditional_output - 3.0 * unconditional_output)
+                    / float(self.steps)
                 )
                 * padded_mask
             ).astype(np.float32)
@@ -651,6 +671,13 @@ class SupertonicModalix:
 
         started = perf_counter()
         waveform = self._run_vocoder(padded_latent, latent_length)
+        waveform_samples = int(wav_lengths[0])
+        if waveform_samples > waveform.size:
+            raise RuntimeError(
+                f"predicted waveform length {waveform_samples} exceeds decoded "
+                f"length {waveform.size}"
+            )
+        waveform = waveform[:waveform_samples].copy()
         timings["vocoder_seconds"] = perf_counter() - started
         generation_seconds = perf_counter() - total_started
 

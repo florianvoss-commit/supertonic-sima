@@ -70,6 +70,7 @@ def main() -> int:
             "sample_rate": result.sample_rate,
             "waveform_samples": int(result.waveform.size),
             "vocoder_backend": engine.vocoder_backend,
+            "steps": engine.steps,
             "initialization_seconds": initialization_seconds,
             "warmup_runs": args.warmup_runs,
             "benchmark": benchmark,

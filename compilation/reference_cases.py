@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from model_contract import (
+from vector_estimator.contract import (
     HF_REPOSITORY,
     HF_REVISION,
     INPUT_SHAPES,

@@ -46,6 +46,8 @@ class SpeechApplication:
             "X-Generation-Length-Seconds": f"{result.generation_seconds:.6f}",
             "X-Real-Time-Factor": f"{result.real_time_factor:.6f}",
             "X-Latent-Length": str(result.latent_length),
+            "X-Text-Length": str(result.text_length),
+            "X-Denoising-Steps": str(self.engine.steps),
         }
         return body, headers
 
@@ -88,6 +90,7 @@ def create_server(
                     {
                         "status": "ok",
                         "vocoder_backend": application.engine.vocoder_backend,
+                        "steps": application.engine.steps,
                     },
                 )
             elif self.path == "/config":
@@ -98,6 +101,7 @@ def create_server(
                         "voices": AVAILABLE_VOICES,
                         "min_speed": MIN_SPEED,
                         "max_speed": MAX_SPEED,
+                        "steps": application.engine.steps,
                     },
                 )
             elif self.path == "/" and application.index_html is not None:
@@ -120,7 +124,42 @@ def create_server(
                 payload = json.loads(self.rfile.read(content_length))
                 if not isinstance(payload, dict):
                     raise ValueError("request body must be a JSON object")
+                raw_text = payload.get("input", "")
+                raw_chars = len(raw_text) if isinstance(raw_text, str) else 0
+                logged_text = json.dumps(raw_text, ensure_ascii=False)
+                chunk_index = payload.get("chunk_index", 1)
+                chunk_count = payload.get("chunk_count", 1)
+                source_chars = payload.get("source_chars", raw_chars)
+                boundary = str(payload.get("split_boundary", "single"))
+                boundary = boundary.replace("\r", "").replace("\n", "")[:24]
+                self.log_message(
+                    "synthesis start chunk=%s/%s boundary=%s "
+                    "raw_chars=%d source_chars=%s language=%s voice=%s "
+                    "speed=%s seed=%s steps=%d text=%s",
+                    chunk_index,
+                    chunk_count,
+                    boundary,
+                    raw_chars,
+                    source_chars,
+                    payload.get("language", payload.get("lang", "en")),
+                    payload.get("voice", "M1"),
+                    payload.get("speed", 1.0),
+                    payload.get("seed", 1101),
+                    application.engine.steps,
+                    logged_text,
+                )
                 body, headers = application.synthesize(payload)
+                self.log_message(
+                    "synthesis done chunk=%s/%s processed_chars=%s "
+                    "latent_frames=%s audio_s=%s generation_s=%s rtf=%s",
+                    chunk_index,
+                    chunk_count,
+                    headers["X-Text-Length"],
+                    headers["X-Latent-Length"],
+                    headers["X-Audio-Length-Seconds"],
+                    headers["X-Generation-Length-Seconds"],
+                    headers["X-Real-Time-Factor"],
+                )
                 self._send(HTTPStatus.OK, body, "audio/wav", headers)
             except (json.JSONDecodeError, TypeError, ValueError) as error:
                 self._json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
