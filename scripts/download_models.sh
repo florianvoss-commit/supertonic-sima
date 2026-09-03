@@ -46,7 +46,7 @@ fi
     'supertonic_vector_field_sima_mpk.tar.gz' \
     '90b2d6a089c8527826dd1d0cb5b557316ac703045f422d6e1332deeabd84e0cb' \
     'supertonic_vocoder_sima_bf16_mpk.tar.gz' \
-    '81fc7a131dd0eafe6fa7062b23f49e0dc9e3fb178f5473bf8d404ab555bcf5aa' \
+    '4e9a4d85592f720c9a497cf94164290ccdddd0c5d104577fb810c936d2abf9f9' \
     'supertonic_runtime_data.npz' \
     '1659e891f4da0cc80c6dd7a5fbb3ca87f3a12ad7f0f2bce0bfb0963433709628' \
     'vocoder_bf16_manifest.json' \
