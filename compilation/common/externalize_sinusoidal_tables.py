@@ -23,7 +23,8 @@ from vector_field_utils import (  # noqa: E402
     pre_external_inputs,
     source_constants,
 )
-from sinusoidal_inputs import (  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "app" / "supertonic_sima"))
+from inputs import (  # noqa: E402
     MAX_SEQUENCE_LENGTH,
     ROPE_BANK_SHAPE,
     ROPE_INPUT,

@@ -25,7 +25,6 @@ from typing import Any
 import numpy as np
 import onnx
 from onnx import TensorProto, helper, numpy_helper
-from onnxsim import simplify
 
 
 VOCODER_SOURCE_SHA256 = (
@@ -166,6 +165,8 @@ def _replace_edge_pads(graph: onnx.GraphProto) -> int:
 
 
 def staticize_and_simplify(source: Path) -> onnx.ModelProto:
+    from onnxsim import simplify
+
     model = onnx.load(source.as_posix())
     simplified, check = simplify(
         model,

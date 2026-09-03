@@ -1,7 +1,6 @@
 .venv*/
 build/
 models/
-testdata/reference_cases/
 __pycache__/
 *.pyc
 *.onnx

@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Build the final static SiMa vector-field and vocoder ONNX graphs.
+"""Build the final static SiMa vector-field ONNX graph.
 
 The specialized transformation modules remain independently testable, but this
 is the public graph-surgery entry point.  It extracts the batch-one vector
 field, lifts all data activations to rank four, applies the MLA-oriented graph
-rewrites, and externalizes timestep/RoPE values and CFG constants. When a
-vocoder source is provided, it also creates the fixed length-192 all-4D
-vocoder with a native HWC-readable output.
+rewrites, and externalizes timestep/RoPE values and CFG constants.
 """
 
 from __future__ import annotations
@@ -20,16 +18,13 @@ import subprocess
 import sys
 from typing import Any
 
-from extract_vector_field import extract
-from lift_vector_field_to_4d import lift
-from model_contract import SOURCE_SHA256
-from optimize_vector_field_4d import optimize
-from optimize_vocoder_4d import (
-    VOCODER_SOURCE_SHA256,
-    optimize as optimize_vocoder,
-    staticize_and_simplify as staticize_vocoder,
-    validate_equivalence as validate_vocoder,
-)
+COMMON_DIR = Path(__file__).resolve().parents[1] / "common"
+sys.path.insert(0, str(COMMON_DIR))
+
+from extract_vector_field import extract  # noqa: E402
+from lift_vector_field_to_4d import lift  # noqa: E402
+from model_contract import SOURCE_SHA256  # noqa: E402
+from optimize_vector_field_4d import optimize  # noqa: E402
 
 
 DEFAULT_CASES = (
@@ -62,11 +57,6 @@ def main() -> int:
         required=True,
         help="Pinned upstream onnx/vector_estimator.onnx.",
     )
-    parser.add_argument(
-        "--vocoder-source",
-        type=Path,
-        help="Pinned upstream onnx/vocoder.onnx; enables vocoder surgery.",
-    )
     parser.add_argument("--reference-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--steps", type=int, default=8)
@@ -75,12 +65,6 @@ def main() -> int:
         nargs="+",
         choices=DEFAULT_CASES,
         default=list(DEFAULT_CASES),
-    )
-    parser.add_argument(
-        "--vocoder-validation-cases",
-        nargs="+",
-        choices=DEFAULT_CASES,
-        default=["en_m1_short", "en_m1_near_capacity"],
     )
     args = parser.parse_args()
 
@@ -123,7 +107,7 @@ def main() -> int:
     report_path = output_dir / "graph_surgery.json"
     write_json(report_path, report)
 
-    staticizer = Path(__file__).with_name("staticize_vector_estimator.py")
+    staticizer = COMMON_DIR / "staticize_vector_estimator.py"
     staticize_report = reports_dir / "staticize.json"
     completed = subprocess.run(
         [
@@ -158,7 +142,7 @@ def main() -> int:
     report["stages"]["optimize"] = optimize(all4d, optimized)
     write_json(reports_dir / "optimize.json", report["stages"]["optimize"])
 
-    externalizer = Path(__file__).with_name("externalize_sinusoidal_tables.py")
+    externalizer = COMMON_DIR / "externalize_sinusoidal_tables.py"
     command = [
         sys.executable,
         str(externalizer),
@@ -193,40 +177,6 @@ def main() -> int:
         externalize_report.read_text()
     )
 
-    vocoder_model: Path | None = None
-    if args.vocoder_source:
-        vocoder_source = args.vocoder_source.resolve()
-        vocoder_source_hash = sha256(vocoder_source)
-        if vocoder_source_hash != VOCODER_SOURCE_SHA256:
-            raise ValueError(
-                "vocoder source SHA-256 mismatch: "
-                f"expected {VOCODER_SOURCE_SHA256}, got {vocoder_source_hash}"
-            )
-        vocoder_references = [
-            reference_dir / f"{name}.npz"
-            for name in args.vocoder_validation_cases
-        ]
-        missing_vocoder_references = [
-            str(path) for path in vocoder_references if not path.is_file()
-        ]
-        if missing_vocoder_references:
-            raise FileNotFoundError(
-                f"missing vocoder validation cases: {missing_vocoder_references}"
-            )
-        vocoder_model = output_dir / "supertonic_vocoder_sima.onnx"
-        vocoder_stage = optimize_vocoder(
-            staticize_vocoder(vocoder_source), vocoder_model
-        )
-        vocoder_stage["source"] = {
-            "path": str(vocoder_source),
-            "sha256": vocoder_source_hash,
-        }
-        vocoder_stage["validation"] = validate_vocoder(
-            vocoder_source, vocoder_model, vocoder_references
-        )
-        report["stages"]["vocoder"] = vocoder_stage
-        write_json(reports_dir / "vocoder.json", vocoder_stage)
-
     report["status"] = "passed"
     report["artifacts"] = {
         "model": {
@@ -239,11 +189,6 @@ def main() -> int:
         },
         "report": str(report_path),
     }
-    if vocoder_model is not None:
-        report["artifacts"]["vocoder_model"] = {
-            "path": str(vocoder_model),
-            "sha256": sha256(vocoder_model),
-        }
     write_json(report_path, report)
     validation = report["stages"]["externalize"]["validation"]
     summary: dict[str, Any] = {
@@ -258,22 +203,6 @@ def main() -> int:
         },
         "report": str(report_path),
     }
-    if vocoder_model is not None:
-        vocoder_validation = report["stages"]["vocoder"]["validation"]
-        summary["vocoder"] = {
-            "model": report["artifacts"]["vocoder_model"],
-            "contract": report["stages"]["vocoder"]["compiled_contract"],
-            "reshape_nodes": report["stages"]["vocoder"]["reshape_nodes"],
-            "transposes_retained_for_layer_norm": report["stages"]["vocoder"][
-                "transposes_retained_for_layer_norm"
-            ],
-            "validation": {
-                "comparisons": len(vocoder_validation["comparisons"]),
-                "max_abs": vocoder_validation["max_abs"],
-                "max_relative_l2": vocoder_validation["max_relative_l2"],
-                "min_cosine": vocoder_validation["min_cosine"],
-            },
-        }
     print(json.dumps(summary, indent=2))
     return 0
 
